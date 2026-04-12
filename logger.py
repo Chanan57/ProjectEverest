@@ -1,6 +1,6 @@
 """
-Everest v8.0 — Dashboard & Logger
-Enhanced dashboard with intelligence columns.
+Everest v9.0 — Dashboard & Logger
+Enhanced dashboard with intelligence + LLM advisory columns.
 Logs trades and prints the live monitoring console.
 """
 import csv
@@ -71,7 +71,7 @@ def print_log_block(timestamp, price, spread, balance, equity,
                      sentiment_data=None, news_data=None, macro_data=None,
                      conviction_summary=None):
     """
-    v8.0: Enhanced live dashboard with intelligence panels.
+    v9.0: Enhanced live dashboard with intelligence + LLM advisory panels.
     """
     # Dynamic target: starting balance + target growth %
     target = balance * (1.0 + EQUITY_TARGET_PCT)
@@ -80,7 +80,7 @@ def print_log_block(timestamp, price, spread, balance, equity,
 
     print(f"\n{'='*70}", flush=True)
     print(f" 📅 LOG: {timestamp.strftime('%H:%M:%S')} | "
-          f"🦅 Everest v8.0 (MULTI-MODAL INTELLIGENCE)", flush=True)
+          f"🦅 Everest v9.0 (MULTI-MODAL + LLM INTELLIGENCE)", flush=True)
     print(f"{'-'*70}", flush=True)
 
     # --- PRICE & ACCOUNT ---
@@ -154,6 +154,16 @@ def print_log_block(timestamp, price, spread, balance, equity,
     try:
         import guardian
         print(f" 🛡️ GUARDIAN:        {guardian.get_guardian_status()}", flush=True)
+    except Exception:
+        pass
+
+    # v9.0: LLM Advisory Panel (shown when available)
+    if conviction_summary and isinstance(conviction_summary, str) and 'LLM' in conviction_summary:
+        pass  # Already shown in conviction line
+    try:
+        import llm_engine
+        if llm_engine.is_available():
+            print(f" 🧠 LLM ENGINE:      {llm_engine.get_llm_status()}", flush=True)
     except Exception:
         pass
 

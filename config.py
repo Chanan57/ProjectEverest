@@ -100,3 +100,22 @@ MIN_CONVICTION_TO_TRADE = 0.30   # Below this → skip trade entirely
 ENSEMBLE_ENABLED = True           # Use RF + GradientBoosting ensemble
 ENSEMBLE_RF_WEIGHT = 0.55         # RandomForest weight in ensemble
 ENSEMBLE_GBC_WEIGHT = 0.45        # GradientBoosting weight in ensemble
+
+# =====================================================================
+#  v9.0 LLM INTELLIGENCE LAYER SETTINGS
+# =====================================================================
+
+# --- 15. LLM ENGINE (Groq API = Primary, Ollama = Fallback) ---
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = "llama-3.3-70b-versatile"      # Free-tier model on Groq
+OLLAMA_MODEL = "qwen2.5:7b"                 # Local fallback model
+OLLAMA_HOST = "http://localhost:11434"       # Ollama server address
+LLM_TIMEOUT_SECONDS = 10                    # Max wait for LLM response
+LLM_CACHE_TTL = 900                         # 15 min cache for LLM results
+LLM_ENABLED = True                          # Master switch for LLM layer
+
+# --- 16. LLM ADVISORY WEIGHTS ---
+# Start at 0.0 (shadow mode) — LLM results are logged but don't affect trades
+# Increase to 0.05-0.10 after validating against live performance
+WEIGHT_LLM_ADVISORY = 0.00                  # LLM influence on conviction score
+LLM_MAX_CONFIDENCE_ADJUSTMENT = 0.10        # Max ±adjustment the LLM can apply

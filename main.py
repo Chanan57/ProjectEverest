@@ -28,11 +28,12 @@ import news_filter
 from market_hours import is_market_open
 from telegram_notifier import send_telegram_alert
 
-# --- IMPORT v8.0 INTELLIGENCE MODULES ---
+# --- IMPORT v9.0 INTELLIGENCE MODULES ---
 import sentiment_engine
 import news_intelligence
 import macro_engine
 import intelligence_aggregator
+import llm_engine
 from cache_manager import cache
 
 # --- IMPORT GUARDIAN (Self-Discipline System) ---
@@ -47,6 +48,8 @@ _intel_data = {
     "sentiment": None,
     "news": None,
     "macro": None,
+    "llm_sentiment": None,
+    "llm_news": None,
     "last_refresh": None
 }
 
@@ -56,6 +59,7 @@ def _refresh_intelligence(adx=None, atr=None):
     Fetch all intelligence data. Runs in a background thread to avoid
     blocking the main trading loop. Each engine uses its own cache TTL,
     so redundant API calls are avoided automatically.
+    v9.0: Also runs LLM-enhanced sentiment and news analysis.
     """
     global _intel_data
     try:
@@ -68,14 +72,33 @@ def _refresh_intelligence(adx=None, atr=None):
             atr=atr
         )
 
+        # v9.0: LLM-enhanced analysis (runs alongside VADER, cached independently)
+        llm_sent = None
+        llm_news_result = None
+        try:
+            # Feed raw Reddit posts to the LLM for contextual re-scoring
+            if sent and sent.get("post_count", 0) > 0:
+                # Get raw posts from cache or re-fetch
+                raw_posts = sentiment_engine._fetch_reddit_data() if hasattr(sentiment_engine, '_fetch_reddit_data') else []
+                if raw_posts:
+                    llm_sent = llm_engine.analyze_sentiment(raw_posts)
+
+            # Feed raw headlines to the LLM for narrative synthesis
+            if news and news.get("top_events"):
+                llm_news_result = llm_engine.analyze_news(news["top_events"])
+        except Exception as e:
+            print(f"\u26a0\ufe0f [LLM] Enhancement error (non-fatal): {e}", flush=True)
+
         with _intel_lock:
             _intel_data["sentiment"] = sent
             _intel_data["news"] = news
             _intel_data["macro"] = macro
+            _intel_data["llm_sentiment"] = llm_sent
+            _intel_data["llm_news"] = llm_news_result
             _intel_data["last_refresh"] = datetime.now()
 
     except Exception as e:
-        print(f"⚠️ [INTEL] Background refresh error: {e}", flush=True)
+        print(f"\u26a0\ufe0f [INTEL] Background refresh error: {e}", flush=True)
 
 
 def _get_intel():
@@ -84,7 +107,9 @@ def _get_intel():
         return (
             _intel_data["sentiment"],
             _intel_data["news"],
-            _intel_data["macro"]
+            _intel_data["macro"],
+            _intel_data.get("llm_sentiment"),
+            _intel_data.get("llm_news")
         )
 
 
@@ -164,7 +189,7 @@ def run_pipeline(model_pack, predictors, is_new_candle=True):
     risk_warning = ""
 
     # D. FETCH INTELLIGENCE DATA (thread-safe read)
-    sentiment_data, news_data, macro_data = _get_intel()
+    sentiment_data, news_data, macro_data, llm_sentiment, llm_news = _get_intel()
 
     # Enhanced AI reasoning
     brain_reason, detailed_reason = ai_oracle.get_enhanced_reason(
@@ -231,8 +256,28 @@ def run_pipeline(model_pack, predictors, is_new_candle=True):
             else:
                 decision_text = f"HUNTING... (Conf: {max(prob_up, prob_down):.2f})"
 
-        # v8.0: CONVICTION CHECK before executing new entries
+        # v9.0: CONVICTION CHECK with LLM advisory
         if signal and signal != "CLOSE":
+            # v9.0: Cross-signal review by LLM (advisory only)
+            llm_advisory = None
+            try:
+                market_snapshot = {
+                    "price": price,
+                    "trend": trend_status,
+                    "rsi": rsi,
+                    "adx": adx,
+                    "atr": atr,
+                    "ml_prob": max(prob_up, prob_down),
+                    "signal": signal,
+                    "sentiment_bias": sentiment_data.get("bias", "n/a") if sentiment_data else "n/a",
+                    "news_bias": news_data.get("overall_bias", "n/a") if news_data else "n/a",
+                    "regime": macro_data.get("market_regime", "n/a") if macro_data else "n/a",
+                    "conviction": 0.5  # Pre-LLM estimate
+                }
+                llm_advisory = llm_engine.cross_signal_review(market_snapshot)
+            except Exception as e:
+                print(f"\u26a0\ufe0f [LLM] Cross-signal review error (non-fatal): {e}", flush=True)
+
             conviction_result = intelligence_aggregator.compute_conviction(
                 signal=signal,
                 prob_up=prob_up,
@@ -241,7 +286,8 @@ def run_pipeline(model_pack, predictors, is_new_candle=True):
                 trend_down=trend_down,
                 sentiment_data=sentiment_data,
                 news_data=news_data,
-                macro_data=macro_data
+                macro_data=macro_data,
+                llm_advisory=llm_advisory
             )
 
             if not conviction_result["should_trade"]:
@@ -349,13 +395,14 @@ model_pack, predictors = ai_oracle.train_model()
 if model_pack is None:
     sys.exit()
 
-print("\n✅ Everest v8.0 MULTI-MODAL INTELLIGENCE ENGINE INITIALIZED.", flush=True)
+print("\n✅ Everest v9.0 MULTI-MODAL INTELLIGENCE ENGINE INITIALIZED.", flush=True)
 print("   - Technical Analysis: RSI, ADX, SMA200, EMA50, ATR, MACD, Bollinger, Stochastic")
 print(f"   - Machine Learning: {'RF + GBC Ensemble' if ENSEMBLE_ENABLED else 'RandomForest'} "
       f"({len(predictors)} features)")
 print("   - Social Sentiment: Reddit (VADER NLP)")
 print("   - News Intelligence: NewsAPI + RSS (NLP + Event Detection)")
 print("   - Macro Narrative: Market Regime Classification")
+print(f"   - LLM Advisory: {llm_engine.get_llm_status()}")
 print("   - Fundamental Shield: Forex Factory News Embargo")
 print(f"   - Risk Cap: {MAX_RISK_PERCENT_CAP:.0%} of balance")
 print("   - Guardian: 🛡️ ACTIVE (manual trades auto-closed)")

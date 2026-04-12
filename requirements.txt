@@ -28,3 +28,8 @@ beautifulsoup4>=4.12.0      # HTML cleanup for RSS
 # --- Visualization (Backtester) ---
 plotly>=5.18.0
 
+# --- New v9.0: LLM Intelligence Layer ---
+groq>=0.9.0                  # Groq API client (free tier, no GPU needed)
+ollama>=0.4.0                # Ollama local model client (optional fallback)
+pydantic>=2.5.0              # Schema enforcement for structured LLM output
+

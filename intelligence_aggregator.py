@@ -10,7 +10,7 @@ from config import (
     WEIGHT_TECHNICAL, WEIGHT_ML, WEIGHT_SENTIMENT,
     WEIGHT_NEWS, WEIGHT_MACRO, MIN_CONVICTION_TO_TRADE,
     RISK_MULT_ALIGNED, RISK_MULT_PARTIAL, RISK_MULT_CONFLICTING,
-    RISK_MULT_DNT
+    RISK_MULT_DNT, WEIGHT_LLM_ADVISORY, LLM_MAX_CONFIDENCE_ADJUSTMENT
 )
 
 
@@ -33,7 +33,8 @@ def compute_conviction(
     trend_down,
     sentiment_data=None,
     news_data=None,
-    macro_data=None
+    macro_data=None,
+    llm_advisory=None
 ):
     """
     Compute the unified conviction score for a proposed trade.
@@ -166,6 +167,26 @@ def compute_conviction(
     conviction = sum(c["weighted"] for c in components.values())
     conviction = round(max(0.0, min(1.0, conviction)), 4)
 
+    # --- v9.0: LLM ADVISORY ADJUSTMENT ---
+    llm_adjustment = 0.0
+    llm_reasoning = None
+    if llm_advisory and WEIGHT_LLM_ADVISORY > 0:
+        raw_adj = llm_advisory.get("confidence_adjustment", 0.0)
+        # Hard-clamp the adjustment to prevent runaway influence
+        llm_adjustment = max(-LLM_MAX_CONFIDENCE_ADJUSTMENT,
+                            min(LLM_MAX_CONFIDENCE_ADJUSTMENT, raw_adj))
+        llm_adjustment = round(llm_adjustment * WEIGHT_LLM_ADVISORY / 0.10, 4)  # Scale by weight
+        conviction = round(max(0.0, min(1.0, conviction + llm_adjustment)), 4)
+        llm_reasoning = llm_advisory.get("reasoning", "")
+
+        # If LLM flags risk, downgrade alignment by one tier
+        if llm_advisory.get("risk_flag", False):
+            if alignment == "strong":
+                alignment = "aligned"
+            elif alignment == "aligned":
+                alignment = "partial"
+            reasoning_parts.append("⚠️ LLM risk flag active")
+
     # --- ALIGNMENT ASSESSMENT ---
     trade_direction = 1 if signal == "BUY" else -1
     agreeing = sum(1 for d in directions.values() if d == trade_direction)
@@ -236,7 +257,11 @@ def compute_conviction(
         "components": components,
         "directions": directions,
         "reasoning": " | ".join(reasoning_parts),
-        "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        # v9.0: LLM advisory data
+        "llm_adjustment": llm_adjustment,
+        "llm_reasoning": llm_reasoning,
+        "llm_assessment": llm_advisory.get("assessment") if llm_advisory else None
     }
 
     return result
