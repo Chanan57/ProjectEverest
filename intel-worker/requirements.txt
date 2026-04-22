@@ -1,0 +1,7 @@
+websockets
+pyzmq
+google-generativeai
+MetaTrader5
+feedparser
+requests
+pydantic

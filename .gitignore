@@ -1,0 +1,30 @@
+# === Secrets ===
+.env
+
+# === Python ===
+venv/
+__pycache__/
+*.pyc
+*.pyo
+core-engine/venv/
+core-engine/__pycache__/
+core-engine/data/
+
+# === Node.js ===
+node_modules/
+data-bridge/node_modules/
+dashboard/node_modules/
+dashboard/dist/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Build ===
+*.local
