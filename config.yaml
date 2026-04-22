@@ -1,0 +1,55 @@
+# Project Everest: Master Configuration
+# Single Source of Truth for system-wide settings
+
+system:
+  name: "Project Everest"
+  version: "1.0.0"
+  mode: "development" # development, staging, production
+
+risk_management:
+  max_risk_pct: 0.01
+  max_drawdown_limit: 0.05
+  daily_loss_limit: 0.02
+  max_open_trades: 3
+
+trading_logic:
+  timeframe: "M30"
+  symbols:
+    - "EURUSD"
+    - "GBPUSD"
+    - "XAUUSD"
+  stacking_enabled: true
+  max_stack_layers: 3
+
+monitoring:
+  telegram_notifications: true
+  log_level: "INFO"
+
+infrastructure:
+  ollama_url: "http://localhost:11434"
+  data_bridge_port: 3000
+
+sentiment_regime:
+  enabled: true
+  llm_model: "gemma3:4b"         # Ollama model tag, e.g. gemma3:4b, llama3, mistral
+  llm_timeout_seconds: 20
+  fetch_interval_seconds: 900    # 15 minutes
+  max_headlines: 15              # headlines sent to the LLM per cycle
+  feeds:
+    - name: "Reuters Business"
+      url: "https://feeds.reuters.com/reuters/businessNews"
+    - name: "Bloomberg Markets"
+      url: "https://feeds.bloomberg.com/markets/news.rss"
+    - name: "CNBC Finance"
+      url: "https://www.cnbc.com/id/10000664/device/rss/rss.html"
+    - name: "FX Street"
+      url: "https://www.fxstreet.com/rss"
+    - name: "Investing.com News"
+      url: "https://www.investing.com/rss/news.rss"
+    - name: "MarketWatch"
+      url: "https://feeds.marketwatch.com/marketwatch/topstories/"
+  trading_sessions:
+    sydney:  { open: "21:00", close: "06:00", tz: "UTC" }
+    tokyo:   { open: "00:00", close: "09:00", tz: "UTC" }
+    london:  { open: "08:00", close: "16:00", tz: "UTC" }
+    new_york: { open: "13:00", close: "22:00", tz: "UTC" }
